@@ -11,6 +11,7 @@ import lombok.extern.java.Log;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 
@@ -43,10 +44,12 @@ public final class EmailNotificationService {
     // con detalles técnicos de I/O, parseo o formateo de texto.
     // Clean Code - Regla 11 (evitar duplicación): la construcción de tokens del mapa
     // es idéntica a la de notifyUserUpdated — debería centralizarse.
-    sendOrLog(buildDestination(user, SUBJECT_CREATED,
-        renderTemplate(loadTemplate("user-created.html"),
-            Map.of(TOKEN_NAME, user.getName().value(), TOKEN_EMAIL, user.getEmail().value(),
-                TOKEN_PASSWORD, plainPassword, TOKEN_ROLE, user.getRole().name()))));
+
+    // Refactorización Alejandro: Separación de responsabilidades y niveles de abstracción.
+    final Map<String, String> tokens = createBaseTokens(user);
+    tokens.put(TOKEN_PASSWORD, plainPassword);
+
+    processAndSendNotification(user, SUBJECT_CREATED, "user-created.html", tokens);
   }
 
   public void notifyUserUpdated(final UserModel user) {
@@ -54,10 +57,29 @@ public final class EmailNotificationService {
     // loadTemplate → renderTemplate → buildDestination → sendOrLog.
     // Esta lógica de orquestación debería extraerse a un método genérico privado.
     // Clean Code - Regla 25 y 26: misma sobrecompactación que arriba.
-    sendOrLog(buildDestination(user, SUBJECT_UPDATED,
-        renderTemplate(loadTemplate("user-updated.html"),
-            Map.of(TOKEN_NAME, user.getName().value(), TOKEN_EMAIL, user.getEmail().value(),
-                TOKEN_ROLE, user.getRole().name(), TOKEN_STATUS, user.getStatus().name()))));
+
+    // Refactorización Alejandro: Reutilización de lógica centralizada.
+    final Map<String, String> tokens = createBaseTokens(user);
+    tokens.put(TOKEN_STATUS, user.getStatus().name());
+
+    processAndSendNotification(user, SUBJECT_UPDATED, "user-updated.html", tokens);
+  }
+
+  // Refactorización Alejandro: Método para centralizar la orquestación (Regla 11)
+  private void processAndSendNotification(UserModel user, String subject, String templateName, Map<String, String> tokens) {
+    final String template = loadTemplate(templateName);
+    final String body = renderTemplate(template, tokens);
+    final EmailDestinationModel destination = buildDestination(user, subject, body);
+    send(destination);
+  }
+
+  // Refactorización Alejandro: Centralización de tokens comunes (Regla 11)
+  private Map<String, String> createBaseTokens(UserModel user) {
+    final Map<String, String> tokens = new HashMap<>();
+    tokens.put(TOKEN_NAME, user.getName().value());
+    tokens.put(TOKEN_EMAIL, user.getEmail().value());
+    tokens.put(TOKEN_ROLE, user.getRole().name());
+    return tokens;
   }
 
   // Clean Code - Regla 6 (evitar parámetros booleanos de control):
@@ -100,7 +122,8 @@ public final class EmailNotificationService {
 
   // VIOLACIÓN Regla 4: método privado que no usa estado de instancia (no usa this ni campos)
   // pero NO está declarado como static. La regla dice: métodos privados sin estado deben ser static.
-  private String renderTemplate(String template, final Map<String, String> values) {
+  // Refactorización Alejandro: Ahora es static.
+  private static String renderTemplate(String template, final Map<String, String> values) {
     String result = template;
     for (final Map.Entry<String, String> tokenEntry : values.entrySet()) {
       final String token = "{{" + tokenEntry.getKey() + "}}";
@@ -117,7 +140,8 @@ public final class EmailNotificationService {
   // pero en realidad también producen un log de advertencia de forma inesperada.
   // La regla dice: una función no debe realizar acciones inesperadas además de lo que
   // su nombre promete.
-  private void sendOrLog(final EmailDestinationModel destination) {
+  // Refactorización Alejandro: Renombrado a 'send' para ser honesto con su propósito.
+  private void send(final EmailDestinationModel destination) {
     try {
       emailSenderPort.send(destination);
     } catch (final EmailSenderException senderException) {

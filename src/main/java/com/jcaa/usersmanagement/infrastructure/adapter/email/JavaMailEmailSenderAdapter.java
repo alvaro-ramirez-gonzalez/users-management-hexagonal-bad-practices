@@ -6,7 +6,7 @@ import com.jcaa.usersmanagement.domain.model.EmailDestinationModel;
 import lombok.extern.java.Log;
 
 import javax.mail.*;
-import javax.mail.internet.InternetAddress;
+import javax.mail.internet.InternetAddress; 
 import javax.mail.internet.MimeMessage;
 import java.io.UnsupportedEncodingException;
 import java.util.Properties;
@@ -40,6 +40,7 @@ public final class JavaMailEmailSenderAdapter implements EmailSenderPort {
       Transport.send(message);
       log.log(Level.INFO, SENDER_EMAIL_LOG, destination.getDestinationEmail());
     } catch (final MessagingException | UnsupportedEncodingException exception) {
+      // Capturamos la excepción técnica y la relanzamos como una excepción de Dominio.
       throw EmailSenderException.becauseSmtpFailed(
           destination.getDestinationEmail(), exception.getMessage());
     }
@@ -48,14 +49,17 @@ public final class JavaMailEmailSenderAdapter implements EmailSenderPort {
   private MimeMessage buildMessage(final EmailDestinationModel destination)
       throws MessagingException, UnsupportedEncodingException {
     final MimeMessage message = new MimeMessage(mailSession);
-    // VIOLACIÓN Regla 4: se usa el nombre completo de la clase InternetAddress dentro del código.
-    // Solo debe usarse el nombre completo cuando hay ambigüedad; en este caso no la hay
-    // ya que está importado correctamente con el wildcard.
-    message.setFrom(new javax.mail.internet.InternetAddress(fromAddress, fromName, CHARSET_UTF8));
+
+    // VIOLACIÓN Regla 4: Corregida.
+    // Refactorización Alejandro: Se eliminó el paquete javax.mail.internet redundante.
+    // Usamos el nombre de la clase directamente gracias a los imports.
+    message.setFrom(new InternetAddress(fromAddress, fromName, CHARSET_UTF8));
+    
     message.addRecipient(
         Message.RecipientType.TO,
         new InternetAddress(
             destination.getDestinationEmail(), destination.getDestinationName(), CHARSET_UTF8));
+    
     message.setSubject(destination.getSubject(), CHARSET_UTF8);
     message.setContent(destination.getBody(), CONTENT_TYPE_HTML);
     return message;

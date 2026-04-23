@@ -1,18 +1,24 @@
 package com.jcaa.usersmanagement.domain.valueobject;
 
 import com.jcaa.usersmanagement.domain.exception.InvalidUserIdException;
+import java.util.Objects;
 
 public record UserId(String value) {
 
+  /**
+   * Constructor compacto del Record.
+   * Garantiza que cualquier instancia de UserId en el sistema sea válida.
+   */
   public UserId {
-    // VIOLACIÓN Regla 4: se usa == null en lugar de Objects.requireNonNull() o Objects.isNull().
-    // Para objetos siempre debe usarse Objects.isNull/nonNull, nunca operadores == o !=.
-    if (value == null) {
-      throw new NullPointerException("UserId cannot be null");
-    }
+    // VIOLACIÓN Regla 4: corregida usando Objects.requireNonNull().
+   // Eliminamos la comparación directa (== null).
+    Objects.requireNonNull(value, "UserId cannot be null");
+
     final String normalizedValue = value.trim();
+    
     validateNotEmpty(normalizedValue);
-    // asigna el valor normalizado al componente
+    
+    // Asigna el valor normalizado al componente del record
     value = normalizedValue;
   }
 

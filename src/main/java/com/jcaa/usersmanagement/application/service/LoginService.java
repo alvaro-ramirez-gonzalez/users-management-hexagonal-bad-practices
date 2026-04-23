@@ -29,7 +29,13 @@ public final class LoginService implements LoginUseCase {
     // Clean Code - Regla 8: violación CQS — el método se llama "getAndValidateUser"
     // pero además de consultar, tiene efectos secundarios (logs internos, acumula estado implícito).
     // Un método que consulta información no debe modificar estado.
-    final UserModel user = getAndValidateUser(email, command.password());
+    
+    // Separamos la obtención de la validación.
+    final UserModel user = findUserOrThrow(email);
+    
+    validateCredentials(user, command.password());
+    
+    validateUserStatus(user);
 
     return user;
   }
@@ -41,33 +47,32 @@ public final class LoginService implements LoginUseCase {
   //   Si exige demasiado análisis para entenderse, debe dividirse.
   // Clean Code - Regla 14 (Ley de Deméter): se navega a internals del objeto:
   //   user → getPassword() → verifyPlain() en lugar de delegar con user.passwordMatches(plain).
-  private UserModel getAndValidateUser(final UserEmail email, final String plainPassword) {
-    final UserModel user = getUserByEmailPort.getByEmail(email).orElse(null);
+  
+  // El método original ha sido descompuesto en piezas atómicas:
+  
+  private UserModel findUserOrThrow(final UserEmail email) {
+    return getUserByEmailPort.getByEmail(email)
+        .orElseThrow(InvalidCredentialsException::becauseCredentialsAreInvalid);
+  }
 
-    if (user == null) {
-      throw InvalidCredentialsException.becauseCredentialsAreInvalid();
-    }
-
+  private void validateCredentials(final UserModel user, final String plainPassword) {
     // Clean Code - Regla 14: acceso profundo a internals del value object.
-    if (!user.getPassword().verifyPlain(plainPassword)) {
+    // Refactorización: Usamos un método de conveniencia en el dominio (Tell, Don't Ask)
+    if (!user.hasPassword(plainPassword)) {
       throw InvalidCredentialsException.becauseCredentialsAreInvalid();
     }
+  }
 
+  private void validateUserStatus(final UserModel user) {
     // Clean Code - Regla 12 (alta cohesión): lógica de dominio sobre estados válidos
     // dispersa en la capa de aplicación — debería encapsularse en UserModel o un servicio de dominio.
     // Clean Code - Regla 17: condición booleana compleja y difícil de leer.
-    // La regla dice: extraer condiciones complejas a métodos con nombre significativo.
-    // Esta expresión equivale a "user.getStatus() != ACTIVE" pero está escrita de forma
-    // redundante e innecesariamente larga — el lector debe analizar cada rama para
-    // deducir la intención central. Debería ser: if (!user.isAllowedToLogin()).
-    if (user.getStatus() != UserStatus.ACTIVE
-        || user.getStatus() == UserStatus.BLOCKED
-        || user.getStatus() == UserStatus.INACTIVE
-        || user.getStatus() == UserStatus.PENDING) {
+    
+    // La lógica de "si puede loguear" se movió al UserModel.
+    // Aquí solo preguntamos por el resultado de esa regla de negocio.
+    if (!user.isAllowedToLogin()) {
       throw InvalidCredentialsException.becauseUserIsNotActive();
     }
-
-    return user;
   }
 
   private void validateCommand(final LoginCommand command) {

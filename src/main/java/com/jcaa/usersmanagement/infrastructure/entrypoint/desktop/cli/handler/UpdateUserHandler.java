@@ -11,34 +11,45 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public final class UpdateUserHandler implements OperationHandler {
 
-  private final UserController userController;
-  private final ConsoleIO console;
-  private final UserResponsePrinter printer;
+    private final UserController userController;
+    private final ConsoleIO console;
+    private final UserResponsePrinter printer;
 
-  @Override
-  public void handle() {
-    // VIOLACIÓN Regla 4: abreviaturas en nombres de variables ("pw" y "upd").
-    // Los nombres deben ser claros y descriptivos, sin abreviaturas.
-    final String id   = console.readRequired("User ID                                       : ");
-    final String name = console.readRequired("New name                                      : ");
-    final String email= console.readRequired("New email                                     : ");
-    final String pw   = console.readOptional("New password (leave blank to keep current)    : ");
-    final String role = console.readRequired("Role   (ADMIN / MEMBER / REVIEWER)            : ");
-    final String status=console.readRequired("Status (ACTIVE / INACTIVE / PENDING / BLOCKED): ");
-
-    try {
-      final UserResponse upd = userController.updateUser(
-          new UpdateUserRequest(
-              id,
-              name,
-              email,
-              pw.isBlank() ? null : pw,
-              role,
-              status));
-      console.println("\n  User updated successfully.");
-      printer.print(upd);
-    } catch (final UserNotFoundException exception) {
-      console.println("  Not found: " + exception.getMessage());
+    @Override
+    public void handle() {
+        final UpdateUserRequest request = collectUpdateData();
+        executeUserUpdate(request);
     }
-  }
+
+    private UpdateUserRequest collectUpdateData() {
+        // Clean Code - Regla 3: Un solo nivel de abstracción por función.
+        // SOLUCIÓN Regla 4: Se eliminan abreviaturas como "pw".
+        final String id       = console.readRequired("User ID                                       : ");
+        final String name     = console.readRequired("New name                                      : ");
+        final String email    = console.readRequired("New email                                     : ");
+        final String password = console.readOptional("New password (leave blank to keep current)    : ");
+        final String role     = console.readRequired("Role   (ADMIN / MEMBER / REVIEWER)            : ");
+        final String status   = console.readRequired("Status (ACTIVE / INACTIVE / PENDING / BLOCKED): ");
+
+        return new UpdateUserRequest(
+                id,
+                name,
+                email,
+                password.isBlank() ? null : password,
+                role,
+                status
+        );
+    }
+
+    private void executeUserUpdate(final UpdateUserRequest request) {
+        try {
+            // SOLUCIÓN Regla 4: Se cambia "upd" por un nombre descriptivo "updatedUser".
+            final UserResponse updatedUser = userController.updateUser(request);
+            console.println("\n  User updated successfully.");
+            printer.print(updatedUser);
+        } catch (final UserNotFoundException exception) {
+            // Clean Code - Regla 21: Mensajes de error claros para el usuario.
+            console.println("  Not found: " + exception.getMessage());
+        }
+    }
 }

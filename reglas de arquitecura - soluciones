@@ -1,0 +1,57 @@
+I. Arquitectura (Enfoque Hexagonal)
+// Hexagonal - Regla 1 (Independencia del Dominio):
+// Descripción del problema: El servicio utilizaba tipos primitivos (String) y lógica de validación externa para definir qué es un email válido.
+// La regla dice: El dominio es el núcleo. Las reglas de negocio y la integridad de los datos deben residir en el dominio, no en la aplicación o la infraestructura.
+// Solución: Se delegó la responsabilidad al Value Object UserEmail. El servicio ahora solo orquestra objetos de dominio, asegurando que el "corazón" del sistema sea quien dicte las reglas.
+
+// Hexagonal - Regla 2 (Dependencia hacia el Centro):
+// Descripción del problema: El código original estaba acoplado a anotaciones y frameworks de validación (Jakarta) directamente en el flujo principal del caso de uso.
+// La regla dice: Las dependencias siempre deben apuntar hacia el dominio. Las capas internas no deben conocer detalles de los frameworks externos.
+// Solución: Se encapsuló la validación técnica en métodos privados. Aunque se use la herramienta, el flujo de negocio del servicio permanece "limpio" y agnóstico a la implementación técnica del framework.
+
+// Hexagonal - Regla 3 (Uso de Puertos de Salida):
+// Descripción del problema: La lógica de envío de notificaciones y persistencia estaba mezclada, sin una distinción clara de fronteras.
+// La regla dice: El acceso a sistemas externos (Base de Datos, APIs, Mailers) debe hacerse exclusivamente a través de interfaces llamadas Puertos (Ports).
+// Solución: Se inyectaron interfaces claras (SaveUserPort, EmailNotificationService). El servicio no sabe cómo se guarda o envía el correo, solo que el contrato se cumple.
+
+II. Estilo Java y Calidad de Código
+// Estilo Java - Regla 4 (Constructor Explícito sobre Generación Automática):
+// Descripción del problema: El fallo de Lombok (@RequiredArgsConstructor) dejó las variables final sin inicializar, rompiendo la compilación.
+// La regla dice: El código debe ser robusto y predecible. En componentes críticos, el constructor manual es preferible para garantizar la inyección de dependencias.
+// Solución: Se eliminó la anotación y se escribió el constructor manual, recuperando el control total sobre la instanciación de la clase.
+
+// Estilo Java - Regla 5 (Acceso Estático Correcto):
+// Descripción del problema: Se intentaba acceder a métodos estáticos de una clase de utilidad a través de una instancia inyectada (userMapper.toDomain).
+// La regla dice: Los métodos estáticos deben ser accedidos de forma estática (vía clase) para evitar confusión sobre el estado y el ciclo de vida del objeto.
+// Solución: Se eliminó la inyección innecesaria y se llamó directamente a UserApplicationMapper.toDomain(command).
+
+// Estilo Java - Regla 6 (Uso de Final para Inmutabilidad):
+// Descripción del problema: Las dependencias y los parámetros de los métodos podían ser reasignados accidentalmente.
+// La regla dice: Usa el modificador final en campos de clase y parámetros para asegurar que la referencia no cambie, promoviendo la seguridad en hilos (thread-safety).
+// Solución: Se marcó cada atributo de puerto y cada parámetro de entrada como final.
+
+// Estilo Java - Regla 7 (Logger Nativo y Trazabilidad):
+// Descripción del problema: La dependencia de @Log falló, dejando al sistema sin capacidad de auditoría.
+// La regla dice: La trazabilidad es vital. Debe configurarse de forma que no dependa de plugins externos inestables.
+// Solución: Se implementó java.util.logging.Logger de forma nativa y estática dentro de la clase.
+
+// Estilo Java - Regla 8 (Encapsulamiento y Visibilidad):
+// Descripción del problema: Los campos de la clase podrían haber estado expuestos o sin niveles de protección adecuados.
+// La regla dice: Mantén el estado interno privado y solo expón lo necesario.
+// Solución: Todos los atributos de la clase se definieron como private final, cumpliendo con el principio de ocultación de información.
+
+III. Mantenibilidad y Diseño Java
+// Estilo Java - Regla 9 (Nombres de Paquetes y Estructura):
+// Descripción del problema: Posible confusión entre clases de infraestructura y aplicación.
+// La regla dice: Organiza el código por capas y responsabilidades (Application, Domain, Infrastructure).
+// Solución: Se respetó la ubicación de la clase en el paquete application.service, separándola de los adaptadores de infraestructura.
+
+// Estilo Java - Regla 10 (Manejo de Excepciones Específicas):
+// Descripción del problema: Lanzar excepciones genéricas o códigos de error técnicos.
+// La regla dice: Crea excepciones que representen errores de negocio (Custom Exceptions) para facilitar el manejo en capas superiores.
+// Solución: Se utilizó UserAlreadyExistsException, permitiendo que el sistema responda con semántica de negocio clara.
+
+// Hexagonal - Regla 11 (Inversión de Dependencia en Puertos de Entrada):
+// Descripción del problema: Originalmente, el flujo de ejecución dependía de cómo se llamaba al servicio desde el exterior, permitiendo que detalles de la capa de entrega (como un Controller o un Test) pudieran influir en la lógica del caso de uso.
+// La regla dice: La capa de Aplicación debe definir interfaces (Input Ports) que dicten cómo el mundo exterior puede interactuar con el Dominio. El servicio debe implementar estas interfaces, asegurando que la lógica de negocio sea quien defina el contrato.
+// Solución: Se implementó la interfaz CreateUserUseCase. Al hacer que CreateUserService implemente este puerto de entrada, garantizamos que cualquier cliente (sea un API REST, una interfaz de consola o una tarea programada) deba adaptarse al contrato definido por el negocio, y no al revés.

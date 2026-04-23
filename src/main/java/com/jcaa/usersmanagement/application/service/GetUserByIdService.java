@@ -9,7 +9,6 @@ import com.jcaa.usersmanagement.domain.model.UserModel;
 import com.jcaa.usersmanagement.domain.valueobject.UserId;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Valid;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 
@@ -24,16 +23,29 @@ public final class GetUserByIdService implements GetUserByIdUseCase {
   // VIOLACIÓN Regla 3: @Valid declarado en la implementación (@Override).
   // Las constraints (@Valid, @NotNull, etc.) solo deben declararse en las interfaces (puertos),
   // nunca en las clases concretas que las implementan.
+  
+  // La validación programática se mantiene en validateQuery para asegurar la integridad,
+  // pero la anotación de Bean Validation debe vivir en el UseCase (Puerto de entrada).
   @Override
-  public UserModel execute(@Valid final GetUserByIdQuery query) {
+  public UserModel execute(final GetUserByIdQuery query) {
+    // Regla 2: "Fail Fast". Validamos antes de cualquier otra operación.
     validateQuery(query);
 
+    // Transformación: El servicio delega el mapeo para no ensuciarse con detalles de DTOs.
     final UserId userId = UserApplicationMapper.fromGetUserByIdQueryToUserId(query);
+    
+    // Regla 14: Tell, Don't Ask. 
+    // Buscamos el usuario y, si no existe, lanzamos la excepción de dominio inmediatamente.
     return getUserByIdPort
         .getById(userId)
         .orElseThrow(() -> UserNotFoundException.becauseIdWasNotFound(userId.value()));
   }
 
+  /**
+   * Refactorización Alejandro: Aunque lo ideal es que el puerto de entrada (Interface) 
+   * dispare la validación, mantenemos este método privado para asegurar que ningún 
+   * Query inválido procese lógica de negocio, cumpliendo con la Regla de Robustez.
+   */
   private void validateQuery(final GetUserByIdQuery query) {
     final Set<ConstraintViolation<GetUserByIdQuery>> violations = validator.validate(query);
     if (!violations.isEmpty()) {

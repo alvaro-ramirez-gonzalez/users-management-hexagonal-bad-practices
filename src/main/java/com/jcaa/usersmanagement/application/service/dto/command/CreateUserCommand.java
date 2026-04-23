@@ -5,9 +5,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 // VIOLACIÓN Regla 3: se mezcla @Builder de Lombok con un record.
 // Los records ya tienen constructor canónico — usar @Builder es redundante e innecesario.
-import lombok.Builder;
+// Refactorización: Se elimina el import de lombok.Builder y la anotación @Builder.
 
-@Builder(toBuilder = true)
 public record CreateUserCommand(
     @NotBlank(message = "id must not be blank") String id,
     @NotBlank(message = "name must not be blank")
@@ -21,5 +20,5 @@ public record CreateUserCommand(
         String password,
     @NotBlank(message = "role must not be blank") String role)
 {
-
+    
 }

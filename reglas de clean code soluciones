@@ -1,0 +1,139 @@
+// Clean Code - Regla 1 (Funciones de una sola responsabilidad):
+// Descripción del problema: El método execute original era un "método dios" que validaba, logueaba, verificaba negocio, mapeaba y notificaba.
+// La regla dice: Cada función hace una sola cosa y puede describirse con un único verbo claro.
+// Solución: Se delegaron las tareas a métodos privados (validateCommand, ensureUserDoesNotExist, notifyUser). execute ahora solo orquesta.
+
+// Clean Code - Regla 2 (Funciones cortas):
+// Descripción del problema: El código era un bloque denso que superaba las 30 líneas, mezclando lógica técnica y de negocio.
+// La regla dice: Las funciones deben ser lo suficientemente pequeñas como para entenderse en pocos segundos.
+// Solución: Al extraer la lógica, el método principal se redujo a 8 líneas de código narrativo.
+
+// Clean Code - Regla 3 (Un solo nivel de abstracción por función):
+// Descripción del problema: Mezclábamos el guardado en base de datos (alto nivel) con la concatenación de Strings para logs (bajo nivel).
+// La regla dice: No combinar lógica de negocio con detalles técnicos de bajo nivel en la misma función.
+// Solución: Se encapsularon los detalles técnicos (formato de logs y validación de Jakarta) en métodos privados.
+
+// Clean Code - Regla 4 (Lectura secuencial - Regla descendente):
+// Descripción del problema: El flujo lógico estaba fragmentado y mezclado con "fontanería" técnica.
+// La regla dice: El código debe poder leerse de arriba hacia abajo; métodos auxiliares deben estar cerca de su uso.
+// Solución: Se organizó la clase: primero el método público execute, seguido inmediatamente por sus métodos privados en el orden en que son llamados.
+
+// Clean Code - Regla 5 (Pocos parámetros por función):
+// Descripción del problema: Pasar email, name y password como primitivos sueltos haría la función difícil de escalar.
+// La regla dice: Encapsular datos relacionados en objetos para evitar listas largas de parámetros.
+// Solución: Se utiliza el objeto CreateUserCommand como único parámetro de entrada.
+
+// Clean Code - Regla 6 (Evitar parámetros booleanos de control):
+// Descripción del problema: (Prevención) Evitamos métodos como saveUser(user, sendEmail) que cambian su comportamiento internamente.
+// La regla dice: Los booleanos que cambian el comportamiento indican que la función hace más de una cosa.
+// Solución: Se separó la lógica de notificación en su propio método explícito notifyUser.
+
+// Clean Code - Regla 7 (Evitar efectos secundarios ocultos):
+// Descripción del problema: En la versión original, el mapper o la validación podrían haber alterado el estado del comando de forma inesperada.
+// La regla dice: Las funciones deben hacer exactamente lo que su nombre indica, sin modificaciones de estado no evidentes.
+// Solución: Se marcaron los parámetros como final y se diseñaron los métodos privados como funciones puras o de acción única.
+
+// Clean Code - Regla 8 (Separar comandos y consultas - CQS):
+// Descripción del problema: El método original buscaba al usuario y lo guardaba en un flujo confuso que mezclaba obtención y modificación.
+// La regla dice: Un método debe consultar información o modificar estado, nunca ambas.
+// Solución: El método ensureUserDoesNotExist consulta, mientras que saveUserPort.save modifica, manteniendo la distinción clara.
+
+II. Expresividad y Comentarios
+// Clean Code - Regla 9 (Código expresivo antes que comentarios):
+// Descripción del problema: Se usaban comentarios para explicar bloques de código poco claros (ej. // validar campos).
+// La regla dice: Preferir nombres claros antes que comentarios. El código debe ser autoexplicativo.
+// Solución: Se reemplazó el bloque de validación por la llamada al método validateCommand(). El nombre es el comentario.
+
+// Clean Code - Regla 10 (Eliminar comentarios innecesarios):
+// Descripción del problema: Había comentarios redundantes como // enviar notificación encima de un servicio de notificación.
+// La regla dice: Evitar comentarios que no aporten más contexto que el propio código.
+// Solución: Se eliminó el ruido visual, confiando en que emailNotificationService.notifyUserCreated es explícito.
+
+// Clean Code - Regla 11 (Evitar duplicación de conocimiento - DRY):
+// Descripción del problema: La lógica de validación de email podría estar repetida en varios servicios.
+// La regla dice: No repetir lógica de negocio en múltiples lugares; centralizar reglas.
+// Solución: Se movió la responsabilidad de la integridad del email al Value Object UserEmail.
+
+III. Diseño de Clases y Objetos
+// Clean Code - Regla 12 (Alta cohesión en clases):
+// Descripción del problema: La clase original tenía dependencias que no siempre se usaban juntas.
+// La regla dice: Cada clase debe tener un propósito claro y métodos relacionados con una misma responsabilidad.
+// Solución: CreateUserService ahora solo tiene dependencias e instrucciones estrictamente necesarias para la creación de usuarios.
+
+// Clean Code - Regla 13 (Evitar clases utilitarias innecesarias):
+// Descripción del problema: El uso de un UserMapper inyectado para un método que era estático por naturaleza.
+// La regla dice: Ubicar la lógica en el contexto adecuado y no abusar de inyecciones innecesarias.
+// Solución: Se invoca de forma estática UserApplicationMapper.toDomain(), tratando al mapper como una función pura de utilidad.
+
+// Clean Code - Regla 14 (Ley de Demeter):
+// Descripción del problema: Navegar por estructuras internas de los objetos de comando o respuesta.
+// La regla dice: Un objeto no debe exponer su estructura interna ni permitir encadenamientos profundos (trenes).
+// Solución: El servicio solo interactúa con los métodos de primer nivel de sus dependencias y modelos.
+
+// Clean Code - Regla 15 (Preferir inmutabilidad):
+// Descripción del problema: Las variables locales y campos de clase podían ser modificados después de su creación.
+// La regla dice: Controlar cambios de estado y evitar setters innecesarios.
+// Solución: Se aplicó el modificador final a todos los atributos de clase y variables de resultado.
+
+IV. Lógica y Tipado
+// Clean Code - Regla 16 (Reducir uso de condicionales complejos):
+// Descripción del problema: El flujo original dependía de varios if anidados para manejar errores y existencia.
+// La regla dice: Evitar cadenas largas de if/else que oscurecen la lógica principal.
+// Solución: Se utilizaron "Guard Clauses" y excepciones de dominio para limpiar el camino principal del método.
+
+// Clean Code - Regla 17 (Manejo limpio de condiciones):
+// Descripción del problema: Evaluaciones booleanas técnicas dentro del flujo de negocio.
+// La regla dice: Usar métodos descriptivos para encapsular condiciones complejas.
+// Solución: Se encapsuló la validación del email en ensureUserDoesNotExist.
+
+// Clean Code - Regla 18 (Evitar valores mágicos):
+// Descripción del problema: Strings sueltos o constantes sin contexto en los logs o excepciones.
+// La regla dice: Usar constantes con significado o tipos que aporten contexto.
+// Solución: Se utilizan Value Objects y excepciones con nombre (UserAlreadyExistsException).
+
+// Clean Code - Regla 19 (Evitar acoplamiento temporal):
+// Descripción del problema: El orden de los métodos era crítico y podía fallar si se llamaba a notificar antes de guardar.
+// La regla dice: No obligar a usar métodos en un orden específico sin protección.
+// Solución: El flujo secuencial de execute garantiza que el usuario exista y esté persistido antes de la notificación.
+
+// Clean Code - Regla 20 (Usar tipos de dominio en lugar de primitivos):
+// Descripción del problema: Se usaban Strings para representar el email en todo el servicio.
+// La regla dice: Representar conceptos con tipos propios para evitar el "Primitive Obsession".
+// Solución: Introducción del tipo UserEmail para encapsular la lógica del dato.
+
+V. Calidad y Mantenibilidad
+// Clean Code - Regla 21 (No usar códigos de error ambiguos):
+// Descripción del problema: Riesgo de devolver null o códigos como -1 si el usuario ya existía.
+// La regla dice: Preferir excepciones expresivas sobre valores especiales.
+// Solución: Lanzamiento de UserAlreadyExistsException.
+
+// Clean Code - Regla 22 (Código fácil de refactorizar):
+// Descripción del problema: El código original estaba acoplado a Lombok y a implementaciones concretas.
+// La regla dice: Estructura flexible y bajo acoplamiento para facilitar cambios.
+// Solución: Se eliminó la dependencia mágica de Lombok por código Java estándar y se usaron interfaces de puertos.
+
+// Clean Code - Regla 23 (Minimizar conocimiento disperso):
+// Descripción del problema: La validación de los datos del comando estaba mezclada con el proceso de guardado.
+// La regla dice: Centralizar reglas importantes y evitar lógica fragmentada.
+// Solución: La validación se centraliza al inicio mediante un único punto de entrada (validateCommand).
+
+// Clean Code - Regla 24 (Consistencia semántica):
+// Descripción del problema: Nombres de variables que cambiaban entre user, userModel, entity.
+// La regla dice: Usar los mismos términos para los mismos conceptos.
+// Solución: Se estandarizó el uso de userToSave y savedUser.
+
+// Clean Code - Regla 25 (Claridad sobre ingenio):
+// Descripción del problema: El uso de anotaciones de Lombok ocultaba cómo se inyectaban las dependencias.
+// La regla dice: Priorizar la claridad y evitar soluciones "inteligentes" difíciles de leer.
+// Solución: Constructor explícito que muestra claramente qué necesita la clase para funcionar.
+
+// Clean Code - Regla 26 (Evitar sobrecompactación):
+// Descripción del problema: A veces, en el afán de hacer el código "corto", se tiende a anidar llamadas como saveUser(mapper.toDomain(validator.validate(command))) en una sola línea.
+// La regla dice: No sacrificar legibilidad por brevedad. Es mejor tener variables intermedias con nombres claros que una línea compleja de entender.
+// Solución: Se desglosó el proceso en pasos legibles: primero se valida, luego se mapea a userToSave y finalmente se guarda en savedUser. Cada paso tiene su propia línea y su propia variable descriptiva.
+
+// Clean Code - Regla 27 (Código listo para leer):
+// Descripción del problema: El código original requería que el desarrollador "investigara" cómo funcionaba Lombok, cómo se conectaban los puertos y dónde estaba la lógica de validación oculta tras anotaciones.
+// La regla dice: El código debe entenderse sin explicación adicional y debe comunicar su intención por sí mismo desde el primer vistazo.
+// Solución: Al eliminar la "magia" de las anotaciones fallidas y estructurar el servicio con métodos que parecen oraciones en lenguaje natural 
+(ej. validateCommand, ensureUserDoesNotExist), cualquier programador nuevo puede leer el archivo de arriba a abajo y entender el proceso de negocio sin necesidad de un manual externo.

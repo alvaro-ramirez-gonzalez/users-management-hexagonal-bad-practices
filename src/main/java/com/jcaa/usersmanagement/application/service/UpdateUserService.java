@@ -16,7 +16,9 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
+import com.jcaa.usersmanagement.application.port.out.EmailNotificationPort;
 
+import java.util.Optional;
 import java.util.Set;
 
 @Log
@@ -29,6 +31,16 @@ public final class UpdateUserService implements UpdateUserUseCase {
   private final EmailNotificationService emailNotificationService;
   private final Validator validator;
 
+  public UpdateUserService(UpdateUserPort updateUserPort, GetUserByIdPort getUserByIdPort, 
+      GetUserByEmailPort getUserByEmailPort, EmailNotificationService emailNotificationService, 
+      Validator validator) {
+    this.updateUserPort = updateUserPort;
+    this.getUserByIdPort = getUserByIdPort;
+    this.getUserByEmailPort = getUserByEmailPort;
+    this.emailNotificationService = emailNotificationService;
+    this.validator = validator;
+  }
+
   @Override
   public UserModel execute(final UpdateUserCommand command) {
     // Clean Code - Regla 8 (separar comandos y consultas — CQS):
@@ -36,9 +48,13 @@ public final class UpdateUserService implements UpdateUserUseCase {
     // Y TAMBIÉN RETORNA el usuario actualizado (consulta).
     // La regla dice: un método que modifica estado no debe presentarse como consulta.
     // Solución: void execute(command) para el comando + UserModel getUpdatedUser(id) para la consulta.
+    
+    // Mantengo el retorno para cumplir con la interfaz actual, 
+    // pero marcamos la violación estructural de CQS.
+
     validateCommand(command);
 
-    log.info("Actualizando usuario id=" + command.id() + ", email=" + command.email() + ", nombre=" + command.name());
+    log.info("Actualizando usuario id=" + command.id() + ", email=" + command.email());
 
     final UserId userId = new UserId(command.id());
     final UserModel current = findExistingUserOrFail(userId);
@@ -48,15 +64,26 @@ public final class UpdateUserService implements UpdateUserUseCase {
 
     final UserModel userToUpdate =
         UserApplicationMapper.fromUpdateCommandToModel(command, current.getPassword());
+    
     final UserModel updatedUser = updateUserPort.update(userToUpdate);
 
     // Clean Code - Regla 6: parámetro booleano de control (boolean flag).
     // La regla dice: no usar boolean flags para cambiar el comportamiento interno de un método.
-    // Si true/false altera el flujo, probablemente hay dos responsabilidades distintas.
-    // Solución: dos métodos separados updateUserAndNotify() y updateUserSilently().
-    notifyIfRequired(updatedUser, true);
+    
+   // Aunque el execute llama a la versión true, 
+    // separamos la lógica en métodos con nombres que expresen intención.
+    updateAndNotify(updatedUser);
 
     return updatedUser;
+  }
+
+  // Eliminamos la bandera de control en favor de métodos explícitos.
+  private void updateAndNotify(final UserModel user) {
+      emailNotificationService.notifyUserUpdated(user);
+  }
+
+  private void updateSilently(final UserModel user) {
+      log.info("Actualización silenciosa para usuario: " + user.getId().value());
   }
 
   // Clean Code - Regla 6: método con dos modos de operar según el boolean — viola la regla.
@@ -64,10 +91,9 @@ public final class UpdateUserService implements UpdateUserUseCase {
   // que también hace logging cuando notify=false. El nombre es engañoso sobre sus efectos.
   private void notifyIfRequired(final UserModel user, final boolean notify) {
     if (notify) {
-      emailNotificationService.notifyUserUpdated(user);
+      updateAndNotify(user);
     } else {
-      // cuando no se notifica, se registra igualmente en el log interno
-      log.info("Actualización silenciosa para usuario: " + user.getId().value());
+      updateSilently(user);
     }
   }
 
@@ -86,23 +112,21 @@ public final class UpdateUserService implements UpdateUserUseCase {
 
   private void ensureEmailIsNotTakenByAnotherUser(final UserEmail newEmail, final UserId ownerId) {
     // Clean Code - Regla 17: condición booleana excesivamente larga y difícil de leer.
-    // La regla dice: extraer condiciones complejas a métodos con nombre significativo.
-    // Esta expresión llama al repositorio TRES VECES en la misma condición — ineficiente e ilegible.
     // Clean Code - Regla 25 (preferir claridad sobre ingenio):
-    // El autor intentó ser exhaustivo en una sola expresión booleana, pero el resultado
-    // es incomprensible. Un lector no puede deducir la intención en pocos segundos.
     // Clean Code - Regla 26 (evitar sobrecompactación):
-    // Se comprimen cuatro llamadas al repositorio y cinco comparaciones en un solo if.
-    // La brevedad no justifica sacrificar la intención.
     // Clean Code - Regla 27 (código listo para leer, no solo para ejecutar):
-    // Sin explicación oral del autor es imposible determinar qué condición exacta
-    // se está evaluando ni por qué hay lógica redundante en la segunda mitad del OR.
-    if (getUserByEmailPort.getByEmail(newEmail).isPresent()
-        && !getUserByEmailPort.getByEmail(newEmail).get().getId().equals(ownerId)
-        && !getUserByEmailPort.getByEmail(newEmail).get().getEmail().value().equals(newEmail.value())
-            || (getUserByEmailPort.getByEmail(newEmail).isPresent()
-                && !getUserByEmailPort.getByEmail(newEmail).get().getId().value().equals(ownerId.value()))) {
-      throw UserAlreadyExistsException.becauseEmailAlreadyExists(newEmail.value());
+
+    // 1. Obtenemos el usuario por email UNA SOLA VEZ.
+    // 2. Comparamos los IDs para ver si el email pertenece a OTRO usuario.
+    
+    Optional<UserModel> userWithSameEmail = getUserByEmailPort.getByEmail(newEmail);
+    
+    if (userWithSameEmail.isPresent()) {
+        boolean isOwnedBySomeoneElse = !userWithSameEmail.get().getId().equals(ownerId);
+        
+        if (isOwnedBySomeoneElse) {
+            throw UserAlreadyExistsException.becauseEmailAlreadyExists(newEmail.value());
+        }
     }
   }
 }
