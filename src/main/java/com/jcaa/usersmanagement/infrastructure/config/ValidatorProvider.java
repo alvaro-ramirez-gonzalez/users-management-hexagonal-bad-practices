@@ -6,14 +6,18 @@ import jakarta.validation.ValidatorFactory;
 import lombok.experimental.UtilityClass;
 import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator;
 
-// VIOLACIÓN Regla 4: clase con solo métodos estáticos que NO tiene @UtilityClass ni constructor privado.
-// Debería anotarse con @UtilityClass para evitar instanciación accidental y generar el constructor privado automáticamente.
+// VIOLACIÓN Regla 4 (Solucionada): Se usa @UtilityClass para garantizar que la clase sea final,
+// genere un constructor privado que lance una excepción y convierta los métodos en estáticos.
 @UtilityClass
 public final class ValidatorProvider {
 
+    /**
+     * Construye una instancia de Validator configurada con un interpolador de parámetros simple.
+     * * Clean Code - Regla 25: Claridad sobre ingenio.
+     * El uso de try-with-resources garantiza el cierre de ValidatorFactory, previniendo
+     * fugas de memoria (Memory Leaks) en el arranque de la infraestructura.
+     */
     public static Validator buildValidator() {
-        // Clean Code - Regla 25: Claridad sobre ingenio (Try-with-resources)
-        // Se asegura el cierre de la fábrica para evitar fugas de recursos.
         try (final ValidatorFactory factory = Validation.byDefaultProvider()
                 .configure()
                 .messageInterpolator(new ParameterMessageInterpolator())
